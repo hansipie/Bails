@@ -13,6 +13,7 @@ fenêtres de rate-limit, % restant et compte à rebours avant reset.
 ![React](https://img.shields.io/badge/React-18-2b1f3d?style=for-the-badge&logo=react&logoColor=ffc24a)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.6-2b1f3d?style=for-the-badge&logo=typescript&logoColor=ffc24a)
 ![Vitest](https://img.shields.io/badge/tests-vitest-2b1f3d?style=for-the-badge&logo=vitest&logoColor=ffc24a)
+[![License: MIT](https://img.shields.io/badge/license-MIT-2b1f3d?style=for-the-badge&logoColor=ffc24a)](LICENSE)
 
 <img src="docs/screenshot.png" alt="Capture d'écran de Bails : cartes Claude Code et Codex avec jauges de quota pixelisées" width="420" />
 
@@ -139,6 +140,13 @@ dans `src/shared/usage.ts` et son rendu dans `CtaBlock`.
 Polices : [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) (titres, labels) et
 [VT323](https://fonts.google.com/specimen/VT323) (texte, chiffres), embarquées via `@fontsource`.
 Icône pixel-art 32×32 dessinée par Codex.
+
+## 📜 LICENSE
+
+[MIT](LICENSE) © 2026 ansicode.
+
+Les polices Press Start 2P et VT323 sont distribuées sous
+[SIL Open Font License 1.1](https://openfontlicense.org/) ; Electron et React sous licence MIT.
 
 <div align="center">
 
