@@ -48,9 +48,9 @@ Téléchargez l'installeur de votre OS dans les [Releases](https://github.com/ha
 | Debian / Ubuntu | `Bails-x.y.z-linux-amd64.deb` |
 | Fedora / RHEL | `Bails-x.y.z-linux-x86_64.rpm` |
 
-> ⚠️ **Les binaires ne sont pas signés** par un certificat Apple / Microsoft.
-> - **macOS** : au premier lancement, clic droit sur l'app › *Ouvrir*, ou :
->   `xattr -cr /Applications/Bails.app`
+> ✅ **macOS** : l'app est signée (Developer ID) et notarisée par Apple, elle s'ouvre directement.
+>
+> ⚠️ Les autres binaires ne sont pas signés :
 > - **Windows** : SmartScreen › *Informations complémentaires* › *Exécuter quand même*.
 > - **AppImage** : `chmod +x Bails-*.AppImage` puis lancez-le.
 
@@ -65,6 +65,19 @@ Le workflow [`.github/workflows/release.yml`](.github/workflows/release.yml) vé
 correspond à la version de `package.json`, lance typecheck + tests, package les 3 OS puis publie
 la release avec les installeurs et un fichier `SHA256SUMS.txt`.
 Il peut aussi être lancé à la main (onglet *Actions*) pour un build sans release.
+
+### Signature macOS
+
+Le job macOS signe l'app avec un certificat **Developer ID Application** puis la fait notariser
+par Apple. Il échoue si l'un de ces secrets GitHub (*Settings › Secrets and variables › Actions*) manque :
+
+| Secret | Contenu |
+|---|---|
+| `MAC_CERT_P12_BASE64` | certificat Developer ID Application + clé privée, exporté en `.p12` puis encodé en base64 |
+| `MAC_CERT_PASSWORD` | mot de passe du `.p12` |
+| `APPLE_ID` | e-mail du compte Apple Developer |
+| `APPLE_APP_SPECIFIC_PASSWORD` | mot de passe d'app généré sur [account.apple.com](https://account.apple.com) |
+| `APPLE_TEAM_ID` | Team ID (10 caractères, visible sur developer.apple.com › *Membership*) |
 
 En local, `npm run dist` construit les installeurs de l'OS courant dans `dist/`
 (`dist:linux`, `dist:win`, `dist:mac` pour cibler un OS ; le `.dmg` exige macOS, le `.rpm` exige `rpmbuild`).

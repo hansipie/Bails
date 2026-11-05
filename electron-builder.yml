@@ -23,11 +23,11 @@ mac:
       arch: [x64, arm64]
     - target: zip
       arch: [x64, arm64]
-  # No Apple Developer certificate yet: ad-hoc signed ("-") so it launches on Apple Silicon,
-  # but not notarized. Hardened runtime is off because it rejects ad-hoc signed Electron frameworks.
-  # See README > Installation for the Gatekeeper workaround.
-  identity: "-"
-  hardenedRuntime: false
+  # Signed with the "Developer ID Application" certificate given by CSC_LINK / CSC_KEY_PASSWORD,
+  # then notarized by Apple when APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID are set
+  # (see .github/workflows/release.yml). Hardened runtime is required for notarization; the
+  # default electron-builder entitlements allow the JIT that Electron needs.
+  hardenedRuntime: true
 
 dmg:
   title: ${productName} ${version}
