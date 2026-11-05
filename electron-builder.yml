@@ -1,0 +1,57 @@
+# Packaging config for Bails. Run `npm run dist` to build installers for the current OS.
+appId: com.ansicode.bails
+productName: Bails
+copyright: Copyright © 2026 ansicode
+
+directories:
+  output: dist
+  buildResources: resources
+
+# Only the compiled app goes in the package: Vite already bundles React into out/.
+files:
+  - out/**
+  - resources/icon.png
+  - package.json
+
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+mac:
+  category: public.app-category.developer-tools
+  icon: resources/icon.png
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  # No Apple Developer certificate yet: ad-hoc signed ("-") so it launches on Apple Silicon,
+  # but not notarized. Hardened runtime is off because it rejects ad-hoc signed Electron frameworks.
+  # See README > Installation for the Gatekeeper workaround.
+  identity: "-"
+  hardenedRuntime: false
+
+dmg:
+  title: ${productName} ${version}
+
+win:
+  icon: resources/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Bails
+
+linux:
+  icon: resources/icon.png
+  category: Development
+  synopsis: Retro-arcade AI token usage tracker
+  # Ties the running window (WM_CLASS / app_id) to the installed .desktop entry and its icon.
+  syncDesktopName: true
+  target:
+    - AppImage
+    - deb
+    - rpm
+
+publish: null

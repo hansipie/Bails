@@ -34,6 +34,40 @@ npm start          # lancer le build de production
 > 💡 Les messages `Fontconfig warning` et `GetVSyncParametersIfAvailable() failed` au lancement
 > viennent du système / de Chromium et sont sans conséquence.
 
+## 💾 INSTALLATION
+
+Téléchargez l'installeur de votre OS dans les [Releases](https://github.com/hansipie/Bails/releases) :
+
+| OS | Fichier |
+|---|---|
+| macOS (Apple Silicon) | `Bails-x.y.z-mac-arm64.dmg` |
+| macOS (Intel) | `Bails-x.y.z-mac-x64.dmg` |
+| Windows | `Bails-x.y.z-win-x64.exe` |
+| Linux (toutes distros) | `Bails-x.y.z-linux-x86_64.AppImage` |
+| Debian / Ubuntu | `Bails-x.y.z-linux-amd64.deb` |
+| Fedora / RHEL | `Bails-x.y.z-linux-x86_64.rpm` |
+
+> ⚠️ **Les binaires ne sont pas signés** par un certificat Apple / Microsoft.
+> - **macOS** : au premier lancement, clic droit sur l'app › *Ouvrir*, ou :
+>   `xattr -cr /Applications/Bails.app`
+> - **Windows** : SmartScreen › *Informations complémentaires* › *Exécuter quand même*.
+> - **AppImage** : `chmod +x Bails-*.AppImage` puis lancez-le.
+
+## 🚀 RELEASE
+
+```sh
+npm version patch          # ou minor / major : met à jour package.json et crée le tag vX.Y.Z
+git push --follow-tags     # le workflow GitHub construit macOS, Windows, Linux et publie la release
+```
+
+Le workflow [`.github/workflows/release.yml`](.github/workflows/release.yml) vérifie que le tag
+correspond à la version de `package.json`, lance typecheck + tests, package les 3 OS puis publie
+la release avec les installeurs et un fichier `SHA256SUMS.txt`.
+Il peut aussi être lancé à la main (onglet *Actions*) pour un build sans release.
+
+En local, `npm run dist` construit les installeurs de l'OS courant dans `dist/`
+(`dist:linux`, `dist:win`, `dist:mac` pour cibler un OS ; le `.dmg` exige macOS, le `.rpm` exige `rpmbuild`).
+
 ## 🕹️ FEATURES
 
 - **Claude Code** et **Codex** : session 5 h, quota hebdomadaire, dépense on-demand.
