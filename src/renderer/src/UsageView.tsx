@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { UsageCta, UsageReport, UsageSnapshot, UsageStatus, UsageWindow } from "../../shared/usage";
 import { formatResetCountdown, remainingTone } from "./format";
 import iconUrl from "./assets/icon.svg";
+import { About } from "./About";
 
 const AUTO_REFRESH_MS = 5 * 60_000;
 
@@ -10,6 +11,8 @@ export function UsageView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [, setTick] = useState(0);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const closeAbout = useCallback(() => setAboutOpen(false), []);
 
   const load = useCallback(async (force: boolean) => {
     setLoading(true);
@@ -43,10 +46,16 @@ export function UsageView() {
             <span className="tagline">TOKEN WATCH</span>
           </div>
         </div>
-        <button type="button" className="btn" onClick={() => void load(true)} disabled={loading}>
-          {loading ? "Loading…" : "Refresh"}
-        </button>
+        <div className="header-actions">
+          <button type="button" className="btn" onClick={() => void load(true)} disabled={loading}>
+            {loading ? "Loading…" : "Refresh"}
+          </button>
+          <button type="button" className="btn" onClick={() => setAboutOpen(true)}>
+            About
+          </button>
+        </div>
       </header>
+      {aboutOpen ? <About onClose={closeAbout} /> : null}
       {error ? <p className="alert">{error}</p> : null}
       {report?.providers.map((s) => <ProviderCard key={s.provider} snapshot={s} />)}
       <footer className="footer">

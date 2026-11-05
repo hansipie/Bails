@@ -187,6 +187,35 @@ body {
 .footer .muted { font: inherit; }
 .footer .blink { animation: blink 1.2s steps(2, start) infinite; color: var(--orange-hi); }
 
+.header-actions { display: flex; flex-direction: column; align-items: flex-end; }
+.header-actions .btn { height: 20px; }
+
+/* About dialog */
+.about-backdrop {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(20, 12, 32, 0.75);
+  border-radius: inherit;
+}
+.about {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  width: min(280px, 90%); padding: 22px 16px 14px;
+  background: var(--screen);
+  border: 3px solid var(--text);
+  box-shadow: 0 0 0 3px var(--screen), 0 0 0 6px var(--panel-border), 6px 6px 0 6px #140c20;
+  text-align: center;
+}
+.about-icon { width: 64px; height: 64px; image-rendering: pixelated; }
+.about h2 {
+  margin: 4px 0 0;
+  font: 22px/1 var(--pixel); letter-spacing: 1px;
+  background: linear-gradient(180deg, var(--orange-hi) 0%, var(--orange) 55%, var(--orange-lo) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(2px 2px 0 var(--orange-shadow));
+}
+.about-version { margin: 6px 0 0; font: 9px/1 var(--pixel); color: var(--orange-hi); }
+.about-by { margin: 0; font: 9px/1.4 var(--pixel); color: var(--text); }
+
 @keyframes blink { to { visibility: hidden; } }
 
 @media (prefers-reduced-motion: reduce) {
