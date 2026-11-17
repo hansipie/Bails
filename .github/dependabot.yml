@@ -1,0 +1,10 @@
+# Weekly pull requests to bump the GitHub Actions pinned by SHA in .github/workflows/.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
