@@ -4,6 +4,14 @@ Toutes les évolutions notables de Bails sont listées ici.
 Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le projet
 respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
+## [Unreleased]
+
+## [0.2.1] - 2026-11-20
+
+### Changé
+
+- Les graphiques d'historique affichent le **% restant** (comme les cartes) au lieu du % utilisé.
+
 ## [0.2.0] - 2026-11-20
 
 ### Ajouté
@@ -35,5 +43,7 @@ respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Packaging electron-builder (macOS signé et notarisé, Windows, Linux) et workflow de release GitHub.
 - Licence MIT.
 
+[Unreleased]: https://github.com/hansipie/Bails/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/hansipie/Bails/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/hansipie/Bails/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hansipie/Bails/releases/tag/v0.1.0
