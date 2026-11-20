@@ -15,6 +15,9 @@ const SERIES: { id: Series; label: string }[] = [
   { id: "weekly", label: "Weekly" }
 ];
 
+const remaining = (used: number | null): number | null =>
+  used === null ? null : Math.min(100, Math.max(0, 100 - used));
+
 const PAD = { top: 12, right: 14, bottom: 26, left: 42 };
 
 export function HistoryView({ provider }: { provider: string }) {
@@ -45,14 +48,17 @@ export function HistoryView({ provider }: { provider: string }) {
 
   const range = RANGES.find((r) => r.id === rangeId) ?? RANGES[2];
   const from = now - range.ms;
-  const samples = (data?.samples ?? []).filter((s) => s.t >= from);
+  // Samples store % used; the chart shows % remaining, like the cards.
+  const samples = (data?.samples ?? [])
+    .filter((s) => s.t >= from)
+    .map((s) => ({ ...s, session: remaining(s.session), weekly: remaining(s.weekly) }));
 
   return (
     <main className="usage history">
       <header className="history-head">
         <div className="brand-text history-title">
           <h1>{(data?.label ?? provider).toUpperCase()}</h1>
-          <span className="tagline">QUOTA USED · HISTORY</span>
+          <span className="tagline">QUOTA REMAINING · HISTORY</span>
         </div>
         <div className="range" role="group" aria-label="Time range">
           {RANGES.map((r) => (
@@ -73,7 +79,7 @@ export function HistoryView({ provider }: { provider: string }) {
         {SERIES.map((s) => (
           <span key={s.id} className="legend-item">
             <span className={`swatch swatch-${s.id}`} aria-hidden />
-            {s.label} % used
+            {s.label} % remaining
           </span>
         ))}
       </div>
@@ -132,7 +138,7 @@ function Chart({ samples, from, to }: { samples: UsageSample[]; from: number; to
           width={width}
           height={height}
           role="img"
-          aria-label="Session and weekly quota used over time"
+          aria-label="Session and weekly quota remaining over time"
           onPointerMove={onMove}
           onPointerLeave={() => setHover(-1)}
         >
