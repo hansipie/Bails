@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import type { UsageCta, UsageReport, UsageSnapshot, UsageStatus, UsageWindow } from "../../shared/usage";
 import { formatResetCountdown, remainingTone } from "./format";
 import iconUrl from "./assets/icon.svg";
@@ -70,8 +70,15 @@ export function UsageView() {
 }
 
 function ProviderCard({ snapshot }: { snapshot: UsageSnapshot }) {
+  const openHistory = () => void window.bails.usage.openHistory(snapshot.provider);
+  const onCardClick = (e: MouseEvent<HTMLElement>) => {
+    // Inner controls (copy, reveal email) keep their own behaviour; so does selecting text.
+    if ((e.target as HTMLElement).closest("button, a, code")) return;
+    if (window.getSelection()?.toString()) return;
+    openHistory();
+  };
   return (
-    <section className="card">
+    <section className="card clickable" onClick={onCardClick} title="Show usage history">
       <div className="card-head">
         <div className="card-title">
           <div className="row">
@@ -80,7 +87,12 @@ function ProviderCard({ snapshot }: { snapshot: UsageSnapshot }) {
           </div>
           {snapshot.account ? <BlurReveal>{snapshot.account}</BlurReveal> : null}
         </div>
-        <StatusDot status={snapshot.status} />
+        <div className="card-side">
+          <StatusDot status={snapshot.status} />
+          <button type="button" className="btn small" onClick={openHistory}>
+            History
+          </button>
+        </div>
       </div>
       {snapshot.windows.length > 0 ? (
         <div className="windows">

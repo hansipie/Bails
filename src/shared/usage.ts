@@ -36,6 +36,24 @@ export interface UsageReport {
   fetchedAt: number;
 }
 
+/** One recorded point of quota usage (used %, 0..100, or null when unknown). */
+export interface UsageSample {
+  /** Epoch ms when the sample was fetched. */
+  t: number;
+  session: number | null;
+  weekly: number | null;
+}
+
+export interface UsageHistory {
+  provider: ProviderId;
+  label: string;
+  samples: UsageSample[];
+}
+
 export interface UsageApi {
   get(force?: boolean): Promise<UsageReport>;
+  /** Recorded samples for one provider (oldest first). */
+  history(provider: ProviderId): Promise<UsageHistory>;
+  /** Opens (or focuses) the history window for one provider. */
+  openHistory(provider: ProviderId): Promise<void>;
 }

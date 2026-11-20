@@ -90,7 +90,18 @@ En local, `npm run dist` construit les installeurs de l'OS courant dans `dist/`
 - **Auto-refresh** toutes les 5 min, bouton `REFRESH ◀` pour forcer.
 - **Email masqué** par défaut (flou), un clic pour le révéler.
 - **Commande de connexion à copier** quand un provider n'est pas connecté.
+- **Historique** : un clic sur une carte ouvre une fenêtre avec les courbes du quota session et
+  hebdomadaire (24 h / 3 j / 7 j), enregistrées localement dans `usage-history.json` (30 jours max).
 - **100 % local** : polices embarquées, aucune télémétrie, credentials en lecture seule.
+
+<div align="center">
+
+<img src="docs/history-24h.png" alt="Fenêtre d'historique de Bails : courbes du quota session et hebdomadaire de Claude Code sur 24 heures" width="400" />
+<img src="docs/history-7d.png" alt="Fenêtre d'historique de Bails : courbes du quota session et hebdomadaire de Claude Code sur 7 jours" width="400" />
+
+*Vue 24 h · vue 7 jours*
+
+</div>
 
 ## ⚙️ HOW IT WORKS
 
@@ -110,11 +121,12 @@ continuant d'afficher le dernier résultat valide.
 
 ```
 src/
-├── main/            process Electron : fenêtre, IPC, UsageService
+├── main/            process Electron : fenêtres, IPC, UsageService
 │   └── usage/
+│       ├── history.ts   historique des quotas (usage-history.json)
 │       └── providers/   claude.ts, codex.ts
-├── preload/         expose window.bails.usage au renderer
-├── renderer/        UI React (thème arcade : styles.css, UsageView.tsx)
+├── preload/         expose window.bails.usage au renderer (rapport + historique)
+├── renderer/        UI React (thème arcade : styles.css, UsageView.tsx, HistoryView.tsx)
 └── shared/          types partagés (UsageReport, UsageSnapshot…)
 resources/           icône de l'app (icon.svg source, icon.png 512×512)
 ```
@@ -153,6 +165,10 @@ dans `src/shared/usage.ts` et son rendu dans `CtaBlock`.
 Polices : [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) (titres, labels) et
 [VT323](https://fonts.google.com/specimen/VT323) (texte, chiffres), embarquées via `@fontsource`.
 Icône pixel-art 32×32 dessinée par Codex.
+
+## 📝 CHANGELOG
+
+L'historique des versions est dans [CHANGELOG.md](CHANGELOG.md).
 
 ## 📜 LICENSE
 

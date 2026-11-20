@@ -15,6 +15,8 @@ export interface UsageServiceOptions {
   minBackoffMs?: number;
   maxBackoffMs?: number;
   formatClock?: (ms: number) => string;
+  /** Called with the snapshots actually fetched (not cached or rate-limited copies) on each report. */
+  onFreshSnapshots?: (snapshots: UsageSnapshot[], fetchedAt: number) => void;
 }
 
 const defaultFormatClock = (ms: number) =>
@@ -28,6 +30,7 @@ export class UsageService {
   private readonly minBackoffMs: number;
   private readonly maxBackoffMs: number;
   private readonly formatClock: (ms: number) => string;
+  private readonly onFreshSnapshots: UsageServiceOptions["onFreshSnapshots"];
 
   constructor(
     private readonly providers: UsageProvider[],
@@ -38,6 +41,7 @@ export class UsageService {
     this.minBackoffMs = options.minBackoffMs ?? 60_000;
     this.maxBackoffMs = options.maxBackoffMs ?? 15 * 60_000;
     this.formatClock = options.formatClock ?? defaultFormatClock;
+    this.onFreshSnapshots = options.onFreshSnapshots;
   }
 
   async getReport(force = false): Promise<UsageReport> {
@@ -46,9 +50,11 @@ export class UsageService {
       return this.cached;
     }
     const promise = (async () => {
-      const snapshots = await Promise.all(this.providers.map((p) => this.fetchOne(p)));
-      const report: UsageReport = { providers: snapshots, fetchedAt: this.ctx.now() };
+      const results = await Promise.all(this.providers.map((p) => this.fetchOne(p)));
+      const report: UsageReport = { providers: results.map((r) => r.snapshot), fetchedAt: this.ctx.now() };
       this.cached = report;
+      const fresh = results.filter((r) => r.fresh).map((r) => r.snapshot);
+      if (fresh.length > 0) this.onFreshSnapshots?.(fresh, report.fetchedAt);
       return report;
     })();
     this.inFlight = promise;
@@ -68,9 +74,9 @@ export class UsageService {
     return s;
   }
 
-  private async fetchOne(provider: UsageProvider): Promise<UsageSnapshot> {
+  private async fetchOne(provider: UsageProvider): Promise<{ snapshot: UsageSnapshot; fresh: boolean }> {
     const s = this.state(provider.id);
-    if (this.ctx.now() < s.blockedUntil) return this.rateLimited(provider, s);
+    if (this.ctx.now() < s.blockedUntil) return { snapshot: this.rateLimited(provider, s), fresh: false };
     try {
       const snapshot = await provider.fetchSnapshot(this.ctx);
       if (snapshot.status === "ok") {
@@ -79,14 +85,17 @@ export class UsageService {
         s.blockedUntil = 0;
         s.backoffMs = 0;
       }
-      return snapshot;
+      return { snapshot, fresh: snapshot.status === "ok" };
     } catch (err) {
       if (err instanceof RateLimitError) {
         s.backoffMs = Math.min(Math.max(s.backoffMs * 2, this.minBackoffMs), this.maxBackoffMs);
         s.blockedUntil = this.ctx.now() + Math.max(err.retryAfterMs ?? 0, s.backoffMs);
-        return this.rateLimited(provider, s);
+        return { snapshot: this.rateLimited(provider, s), fresh: false };
       }
-      return errorSnapshot(provider, "error", err instanceof Error ? err.message : String(err));
+      return {
+        snapshot: errorSnapshot(provider, "error", err instanceof Error ? err.message : String(err)),
+        fresh: false
+      };
     }
   }
 
