@@ -6,6 +6,8 @@ respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-27
+
 ### Ajouté
 
 - **Provider Antigravity** (Google, CLI `agy`) : quota des modèles Gemini (enregistré dans
@@ -64,7 +66,8 @@ respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Packaging electron-builder (macOS signé et notarisé, Windows, Linux) et workflow de release GitHub.
 - Licence MIT.
 
-[Unreleased]: https://github.com/hansipie/Bails/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/hansipie/Bails/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/hansipie/Bails/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/hansipie/Bails/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/hansipie/Bails/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hansipie/Bails/releases/tag/v0.1.0
