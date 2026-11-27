@@ -97,7 +97,7 @@ describe("antigravity", () => {
         { modelId: "tab_flash_lite_preview", remainingFraction: 0 }
       ]
     });
-    expect(w).toEqual({ id: "session", label: "Gemini models", usedPercent: 50, resetsAt: Date.parse("2026-11-28T01:30:00Z") });
+    expect(w).toEqual({ id: "session", label: "Session · Gemini", usedPercent: 50, resetsAt: Date.parse("2026-11-28T01:30:00Z") });
     expect(parseAntigravityModelQuota({ buckets: [] })).toBeNull();
   });
 
@@ -114,8 +114,8 @@ describe("antigravity", () => {
       ]
     });
     expect(windows).toEqual([
-      { id: "claude-and-gpt-models-weekly", label: "Claude and GPT models · Weekly", usedPercent: 25, resetsAt: Date.parse("2026-12-04T21:01:21Z") },
-      { id: "claude-and-gpt-models-5h", label: "Claude and GPT models · 5h", usedPercent: 0, resetsAt: null }
+      { id: "claude-and-gpt-models-5h", label: "Session (5h) · Claude/GPT", usedPercent: 0, resetsAt: null },
+      { id: "claude-and-gpt-models-weekly", label: "Weekly · Claude/GPT", usedPercent: 25, resetsAt: Date.parse("2026-12-04T21:01:21Z") }
     ]);
     expect(parseAntigravityPlan({ currentTier: { id: "free-tier", name: "Antigravity" } })).toBe("Free");
     expect(parseAntigravityPlan({ currentTier: { id: "x" }, paidTier: { name: "Google AI Pro" } })).toBe("Google AI Pro");

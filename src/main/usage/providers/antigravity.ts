@@ -73,20 +73,28 @@ export function parseAntigravityModelQuota(json: unknown): UsageWindow | null {
       worst = { fraction, resetsAt };
     }
   }
-  return worst && { id: "session", label: "Gemini models", usedPercent: usedPercent(worst.fraction), resetsAt: worst.resetsAt };
+  return (
+    worst && { id: "session", label: "Session · Gemini", usedPercent: usedPercent(worst.fraction), resetsAt: worst.resetsAt }
+  );
 }
 
-function summaryWindowLabel(window: string | null, bucket: JsonRecord): string {
-  if (window === "5h") return "5h";
-  if (window === "weekly") return "Weekly";
-  return window ?? asString(bucket.displayName) ?? "Limit";
+/** Same naming as the other cards: "Session (5h)" / "Weekly", sessions listed before weeklies. */
+function summaryWindow(window: string | null, bucket: JsonRecord): { label: string; rank: number } {
+  if (window === "5h") return { label: "Session (5h)", rank: 0 };
+  if (window === "weekly") return { label: "Weekly", rank: 1 };
+  return { label: window ?? asString(bucket.displayName) ?? "Limit", rank: 2 };
+}
+
+/** "Claude and GPT models" -> "Claude/GPT", to match labels like "Weekly · Sonnet". */
+function shortGroupName(name: string): string {
+  return name.replace(/\s+models?$/i, "").replace(/\s+and\s+/gi, "/").trim() || name;
 }
 
 /** Grouped limits (e.g. "Claude and GPT models": 5h + weekly), one window per bucket. */
 export function parseAntigravityQuotaSummary(json: unknown): UsageWindow[] {
   const groups = asRecord(json)?.groups;
   if (!Array.isArray(groups)) return [];
-  const windows: UsageWindow[] = [];
+  const windows: (UsageWindow & { rank: number })[] = [];
   for (const value of groups) {
     const group = asRecord(value);
     if (!group || !Array.isArray(group.buckets)) continue;
@@ -95,15 +103,18 @@ export function parseAntigravityQuotaSummary(json: unknown): UsageWindow[] {
       const bucket = asRecord(b);
       if (!bucket) continue;
       const window = asString(bucket.window);
+      const { label, rank } = summaryWindow(window, bucket);
       windows.push({
         id: `${slug(name)}-${slug(window ?? asString(bucket.bucketId) ?? String(windows.length))}`,
-        label: `${name} · ${summaryWindowLabel(window, bucket)}`,
+        label: `${label} · ${shortGroupName(name)}`,
         usedPercent: usedPercent(asNumber(bucket.remainingFraction)),
-        resetsAt: asEpochMs(bucket.resetTime)
+        resetsAt: asEpochMs(bucket.resetTime),
+        rank
       });
     }
   }
-  return windows;
+  // Stable sort: sessions first, then weeklies, groups kept in API order within each.
+  return windows.sort((a, b) => a.rank - b.rank).map(({ rank: _rank, ...w }) => w);
 }
 
 /** Plan name from loadCodeAssist: the paid tier when there is one, else the current tier. */
