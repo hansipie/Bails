@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { CommandNotFoundError } from "./exec";
 import {
+  AGY_RETRY_MS,
   antigravityProvider,
+  createAntigravityProvider,
   parseAntigravityModelQuota,
   parseAntigravityPlan,
   parseAntigravityQuotaSummary,
@@ -136,7 +139,8 @@ describe("antigravity", () => {
             ? { currentTier: { id: "free-tier" } }
             : { groups: [] };
         return new Response(JSON.stringify(body), { status: 200 });
-      }) as typeof fetch
+      }) as typeof fetch,
+      runCommand: async () => ({ code: 1, stdout: "", stderr: "" })
     };
     const snap = await antigravityProvider.fetchSnapshot(ctx);
     expect(snap).toMatchObject({ status: "ok", account: "me@example.com", plan: "Free" });
@@ -150,6 +154,55 @@ describe("antigravity", () => {
     expect(expired.status).toBe("unauthenticated");
     const missing = await antigravityProvider.fetchSnapshot({ ...ctx, readKeyring: async () => null });
     expect(missing.status).toBe("unauthenticated");
+  });
+
+  /** Keyring holding `token` until agy runs, then `renewed` (if any); fetch answers 200. */
+  function renewCtx(opts: { renewed: string | null; agyCode?: number; missingFirst?: boolean }) {
+    let stored = JSON.stringify({ token: { access_token: "old", expiry: "2026-11-27T20:00:00Z" } });
+    const commands: string[] = [];
+    const tokens: string[] = [];
+    let t = Date.parse("2026-11-27T21:00:00Z");
+    const ctx: ProviderContext = {
+      now: () => t,
+      env: {},
+      homeDir: "/home/x",
+      readKeyring: async () => stored,
+      runCommand: async (cmd, args) => {
+        commands.push([cmd, ...args].join(" "));
+        if (opts.missingFirst && commands.length === 1) throw new CommandNotFoundError(cmd);
+        if (opts.renewed) stored = JSON.stringify({ token: { access_token: opts.renewed, expiry: "2026-11-27T22:00:00Z" } });
+        return { code: opts.agyCode ?? 0, stdout: "", stderr: "" };
+      },
+      fetch: (async (_url: string, init: RequestInit) => {
+        tokens.push((init.headers as Record<string, string>).Authorization!);
+        return new Response(JSON.stringify({ buckets: [{ modelId: "gemini-3-flash", remainingFraction: 0.5 }] }), { status: 200 });
+      }) as typeof fetch
+    };
+    return { ctx, commands, tokens, advance: (ms: number) => (t += ms) };
+  }
+
+  it("lets agy renew an expired token, then uses the new one", async () => {
+    const { ctx, commands, tokens } = renewCtx({ renewed: "new", missingFirst: true });
+    const snap = await createAntigravityProvider().fetchSnapshot(ctx);
+    expect(snap.status).toBe("ok");
+    // ~/.local/bin/agy is missing in this test, so it falls back to agy on the PATH.
+    expect(commands).toEqual(["/home/x/.local/bin/agy models", "agy models"]);
+    expect(new Set(tokens)).toEqual(new Set(["Bearer new"]));
+  });
+
+  it("reports a failed renewal and does not relaunch agy for the same token right away", async () => {
+    const { ctx, commands, advance } = renewCtx({ renewed: null, agyCode: 2 });
+    const provider = createAntigravityProvider();
+    const snap = await provider.fetchSnapshot(ctx);
+    expect(snap.status).toBe("unauthenticated");
+    expect(snap.detail).toContain("agy could not renew it (agy exited with code 2)");
+    expect(snap.cta).toMatchObject({ command: "agy" });
+
+    await provider.fetchSnapshot(ctx);
+    expect(commands).toHaveLength(1);
+    advance(AGY_RETRY_MS);
+    await provider.fetchSnapshot(ctx);
+    expect(commands).toHaveLength(2);
   });
 });
 
@@ -178,5 +231,48 @@ describe("UsageService", () => {
     t += 1000; // still inside the 60s backoff: provider not called again
     await svc.getReport(true);
     expect(calls).toBe(2);
+  });
+
+  it("keeps the last good gauges, marked stale, when an opted-in provider gets signed out", async () => {
+    let signedIn = true;
+    const window = { id: "session", label: "Session", usedPercent: 40, resetsAt: null };
+    const make = (keep: boolean): UsageProvider => ({
+      id: keep ? "keep" : "plain",
+      label: "P",
+      keepLastGoodWhenSignedOut: keep,
+      async fetchSnapshot() {
+        return signedIn
+          ? { provider: "p", label: "P", status: "ok", account: "a", plan: null, windows: [window], costUsd: null, detail: null, cta: null }
+          : {
+              provider: "p",
+              label: "P",
+              status: "unauthenticated",
+              account: null,
+              plan: null,
+              windows: [],
+              costUsd: null,
+              detail: "Token is expired.",
+              cta: { kind: "terminal", title: "Sign in", command: "agy" }
+            };
+      }
+    });
+    const fresh: number[] = [];
+    const svc = new UsageService([make(true), make(false)], { now: () => 0 } as ProviderContext, {
+      cacheTtlMs: 0,
+      formatClock: () => "22:40",
+      onFreshSnapshots: (s) => fresh.push(s.length)
+    });
+    await svc.getReport(true);
+    signedIn = false;
+    const [kept, plain] = (await svc.getReport(true)).providers;
+    expect(kept).toMatchObject({
+      status: "unauthenticated",
+      windows: [window],
+      account: "a",
+      detail: "Token is expired. Showing usage from 22:40.",
+      cta: { command: "agy" }
+    });
+    expect(plain).toMatchObject({ status: "unauthenticated", windows: [] });
+    expect(fresh).toEqual([2]); // stale copies are not recorded in history
   });
 });

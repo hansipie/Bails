@@ -118,7 +118,11 @@ En local, `npm run dist` construit les installeurs de l'OS courant dans `dist/`
 
 Les fichiers de credentials ne sont **jamais réécrits** et les tokens ne sont jamais rafraîchis :
 si un token est expiré ou rejeté, la carte invite à relancer `claude` / `codex login` / `agy`.
-Le token Antigravity expire au bout d'une heure : `agy` le renouvelle quand il tourne.
+Exception pour Antigravity, dont le token expire au bout d'une heure : quand il a expiré, Bails
+lance une fois `agy models` (simple liste des modèles, sans consommer de quota), qui renouvelle et
+enregistre lui-même son token, puis relit le trousseau. Bails ne touche jamais au token de
+rafraîchissement. Si le renouvellement échoue, la carte garde les dernières jauges connues avec
+leur heure et invite à relancer `agy` ; Bails ne relance pas `agy` pour ce token avant 15 min.
 Antigravity n'est pas encore pris en charge sous Windows. Gemini CLI n'est pas utilisé :
 Google n'y accepte plus les comptes individuels et renvoie vers Antigravity.
 Ces endpoints ne sont pas documentés publiquement et peuvent changer : les parsers sont

@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import type { ProviderId, UsageCta, UsageSnapshot } from "../../shared/usage";
+import type { CommandResult } from "./exec";
 import { asRecord, parseRetryAfterMs } from "./parse";
 
 /**
@@ -13,6 +14,11 @@ import { asRecord, parseRetryAfterMs } from "./parse";
 export interface UsageProvider {
   id: ProviderId;
   label: string;
+  /**
+   * When a fetch comes back "unauthenticated" after a good one, show the last good snapshot
+   * (marked stale) instead of an error card. For tokens that expire often, like Antigravity's.
+   */
+  keepLastGoodWhenSignedOut?: boolean;
   fetchSnapshot(ctx: ProviderContext): Promise<UsageSnapshot>;
 }
 
@@ -23,6 +29,8 @@ export interface ProviderContext {
   homeDir: string;
   /** Reads a generic password from the OS keyring; null when absent. Throws if the keyring is unusable. */
   readKeyring(service: string, account: string): Promise<string | null>;
+  /** Runs a command without a shell; rejects with CommandNotFoundError when it is not installed. */
+  runCommand(cmd: string, args: string[], timeoutMs: number): Promise<CommandResult>;
 }
 
 export class RateLimitError extends Error {

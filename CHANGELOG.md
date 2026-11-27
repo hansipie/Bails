@@ -11,6 +11,9 @@ respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - **Provider Antigravity** (Google, CLI `agy`) : quota des modèles Gemini (enregistré dans
   l'historique comme session) et limites 5 h / hebdomadaires du groupe Claude/GPT, avec le plan
   du compte. Le token est lu dans le trousseau système (Linux, macOS).
+- **Renouvellement du token Antigravity** : quand il a expiré, Bails lance `agy models`, qui
+  renouvelle lui-même son token. Si ça échoue, la carte garde les dernières jauges connues, avec
+  leur heure, au lieu de passer en erreur.
 - **Masquer une carte provider** : bouton `Hide` sur chaque carte, `Show` dans la barre « Hidden »
   pour la ramener. Un provider masqué n'est plus interrogé ; le choix est mémorisé dans
   `settings.json` (userData).

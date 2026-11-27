@@ -103,6 +103,8 @@ export class UsageService {
         s.lastGoodAt = this.ctx.now();
         s.blockedUntil = 0;
         s.backoffMs = 0;
+      } else if (snapshot.status === "unauthenticated" && provider.keepLastGoodWhenSignedOut && s.lastGood) {
+        return { snapshot: this.stale(snapshot, s.lastGood, s.lastGoodAt), fresh: false };
       }
       return { snapshot, fresh: snapshot.status === "ok" };
     } catch (err) {
@@ -116,6 +118,17 @@ export class UsageService {
         fresh: false
       };
     }
+  }
+
+  /** Last good gauges, but with the current status, explanation and sign-in command. */
+  private stale(current: UsageSnapshot, lastGood: UsageSnapshot, lastGoodAt: number): UsageSnapshot {
+    const note = `Showing usage from ${this.formatClock(lastGoodAt)}.`;
+    return {
+      ...lastGood,
+      status: current.status,
+      detail: current.detail ? `${current.detail} ${note}` : note,
+      cta: current.cta
+    };
   }
 
   private rateLimited(provider: UsageProvider, s: Resilience): UsageSnapshot {

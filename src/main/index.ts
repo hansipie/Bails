@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { UsageHistory } from "../shared/usage";
 import { HistoryStore } from "./usage/history";
+import { runCommand } from "./usage/exec";
 import { readKeyring } from "./usage/keyring";
 import { providers } from "./usage/providers";
 import { SettingsStore } from "./settings";
@@ -21,7 +22,8 @@ const usage = new UsageService(
     fetch: globalThis.fetch.bind(globalThis),
     env: process.env,
     homeDir: homedir(),
-    readKeyring
+    readKeyring,
+    runCommand
   },
   {
     onFreshSnapshots: (snapshots, fetchedAt) => {

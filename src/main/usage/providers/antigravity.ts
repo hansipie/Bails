@@ -1,13 +1,24 @@
 // Google Antigravity CLI (`agy`) usage: the Gemini models' shared quota, plus the grouped
 // 5h/weekly limits of the third-party models (Claude, GPT-OSS…) when the API reports them.
 // Credentials: the OS keyring entry service "gemini" / account "antigravity", written by `agy`
-// at sign-in (JSON holding an OAuth token). Read-only: an expired token is reported, never refreshed.
+// at sign-in (JSON holding an OAuth token). Bails never writes it: when the token has expired
+// (it lasts an hour), it runs `agy models` once, which makes agy renew and save its own token,
+// then reads the keyring again. Bails never touches the refresh token itself.
 //
 // The Cloud Code endpoints below are the ones `agy` calls. They answer a client that does not
 // identify as Antigravity as an unsupported (legacy Gemini CLI) client, hence the User-Agent.
+import { join } from "node:path";
 import type { UsageSnapshot, UsageWindow } from "../../../shared/usage";
+import { CommandNotFoundError } from "../exec";
 import { asEpochMs, asNumber, asRecord, asString, clampPercent, type JsonRecord } from "../parse";
-import { errorSnapshot, isAuthRejection, postJson, type ProviderContext, type UsageProvider } from "../provider";
+import {
+  errorSnapshot,
+  isAuthRejection,
+  postJson,
+  type JsonResponse,
+  type ProviderContext,
+  type UsageProvider
+} from "../provider";
 
 export const ANTIGRAVITY_API_BASE = "https://daily-cloudcode-pa.googleapis.com/v1internal";
 export const ANTIGRAVITY_KEYRING = { service: "gemini", account: "antigravity" } as const;
@@ -127,59 +138,140 @@ export function parseAntigravityPlan(json: unknown): string | null {
   return asString(current?.name);
 }
 
-export const antigravityProvider: UsageProvider = {
-  id: "antigravity",
-  label: "Antigravity",
-  async fetchSnapshot(ctx: ProviderContext): Promise<UsageSnapshot> {
-    let secret: string | null;
+const AGY_TIMEOUT_MS = 60_000;
+/** After a failed renewal, wait this long before launching agy again for the same token. */
+export const AGY_RETRY_MS = 15 * 60_000;
+
+/**
+ * Lets agy renew its own token. `agy models` only lists models (no quota used), but it has to
+ * sign in, so it refreshes the token and saves it to the keyring. Returns an error message, or null.
+ */
+async function runAgyRefresh(ctx: ProviderContext): Promise<string | null> {
+  // Apps started from a desktop menu often lack ~/.local/bin in their PATH.
+  for (const cmd of [join(ctx.homeDir, ".local", "bin", "agy"), "agy"]) {
     try {
-      secret = await ctx.readKeyring(ANTIGRAVITY_KEYRING.service, ANTIGRAVITY_KEYRING.account);
+      const { code } = await ctx.runCommand(cmd, ["models"], AGY_TIMEOUT_MS);
+      return code === 0 ? null : `agy exited with code ${code}`;
     } catch (err) {
-      return errorSnapshot(this, "error", `Could not read the Antigravity token from the keyring: ${(err as Error).message}`);
+      if (err instanceof CommandNotFoundError) continue;
+      return (err as Error).message;
     }
-    const creds = secret ? parseAntigravitySecret(secret) : null;
-    if (!creds) {
-      return errorSnapshot(this, "unauthenticated", "No Antigravity credentials found. Sign in with the agy CLI first.", LOGIN_CTA);
-    }
-    if (creds.expiresAt !== null && creds.expiresAt < ctx.now()) {
-      return errorSnapshot(
-        this,
-        "unauthenticated",
-        "Antigravity token is expired. Run `agy` once to refresh it, then refresh here.",
-        LOGIN_CTA
-      );
-    }
-
-    const headers = { Authorization: `Bearer ${creds.accessToken}`, "User-Agent": USER_AGENT };
-    const [quota, summary, load] = await Promise.all([
-      postJson(ctx, `${ANTIGRAVITY_API_BASE}:retrieveUserQuota`, headers, {}),
-      postJson(ctx, `${ANTIGRAVITY_API_BASE}:retrieveUserQuotaSummary`, headers, {}),
-      postJson(ctx, `${ANTIGRAVITY_API_BASE}:loadCodeAssist`, headers, {
-        metadata: { ideType: "ANTIGRAVITY", platform: "PLATFORM_UNSPECIFIED", pluginType: "GEMINI" }
-      })
-    ]);
-    if (!quota.ok) {
-      if (quota.status === 401) {
-        return errorSnapshot(this, "unauthenticated", "Antigravity rejected the token (HTTP 401). Run `agy` once, then refresh here.", LOGIN_CTA);
-      }
-      const message = asString(asRecord(asRecord(quota.json)?.error)?.message);
-      return isAuthRejection(quota.status)
-        ? errorSnapshot(this, "error", `Antigravity denied access to the quota (HTTP ${quota.status})${message ? `: ${message}` : "."}`)
-        : errorSnapshot(this, "error", `Antigravity quota API returned HTTP ${quota.status}.`);
-    }
-
-    const gemini = parseAntigravityModelQuota(quota.json);
-    const windows = [...(gemini ? [gemini] : []), ...(summary.ok ? parseAntigravityQuotaSummary(summary.json) : [])];
-    return {
-      provider: this.id,
-      label: this.label,
-      status: "ok",
-      account: creds.email,
-      plan: load.ok ? parseAntigravityPlan(load.json) : null,
-      windows,
-      costUsd: null,
-      detail: windows.length === 0 ? "Connected, but no usage windows in the response." : null,
-      cta: null
-    };
   }
-};
+  return "agy is not installed or not on the PATH";
+}
+
+type CredsResult = { creds: AntigravityCredentials } | { snapshot: UsageSnapshot };
+
+function fetchQuota(ctx: ProviderContext, creds: AntigravityCredentials): Promise<JsonResponse[]> {
+  const headers = { Authorization: `Bearer ${creds.accessToken}`, "User-Agent": USER_AGENT };
+  return Promise.all([
+    postJson(ctx, `${ANTIGRAVITY_API_BASE}:retrieveUserQuota`, headers, {}),
+    postJson(ctx, `${ANTIGRAVITY_API_BASE}:retrieveUserQuotaSummary`, headers, {}),
+    postJson(ctx, `${ANTIGRAVITY_API_BASE}:loadCodeAssist`, headers, {
+      metadata: { ideType: "ANTIGRAVITY", platform: "PLATFORM_UNSPECIFIED", pluginType: "GEMINI" }
+    })
+  ]);
+}
+
+/** A provider instance remembers its last renewal attempt, so agy is not relaunched on every refresh. */
+export function createAntigravityProvider(): UsageProvider {
+  let lastAttempt: { token: string; at: number } | null = null;
+
+  const provider: UsageProvider = {
+    id: "antigravity",
+    label: "Antigravity",
+    keepLastGoodWhenSignedOut: true,
+    async fetchSnapshot(ctx: ProviderContext): Promise<UsageSnapshot> {
+      const readCreds = async (): Promise<CredsResult> => {
+        let secret: string | null;
+        try {
+          secret = await ctx.readKeyring(ANTIGRAVITY_KEYRING.service, ANTIGRAVITY_KEYRING.account);
+        } catch (err) {
+          return {
+            snapshot: errorSnapshot(provider, "error", `Could not read the Antigravity token from the keyring: ${(err as Error).message}`)
+          };
+        }
+        const creds = secret ? parseAntigravitySecret(secret) : null;
+        return creds
+          ? { creds }
+          : {
+              snapshot: errorSnapshot(
+                provider,
+                "unauthenticated",
+                "No Antigravity credentials found. Sign in with the agy CLI first.",
+                LOGIN_CTA
+              )
+            };
+      };
+
+      const first = await readCreds();
+      if ("snapshot" in first) return first.snapshot;
+      let creds = first.creds;
+      let refreshError: string | null = null;
+
+      /** Runs agy at most once per token (and per AGY_RETRY_MS); true when a new token was read. */
+      const renew = async (): Promise<boolean> => {
+        if (lastAttempt && lastAttempt.token === creds.accessToken && ctx.now() - lastAttempt.at < AGY_RETRY_MS) {
+          return false;
+        }
+        lastAttempt = { token: creds.accessToken, at: ctx.now() };
+        refreshError = await runAgyRefresh(ctx);
+        if (refreshError) return false;
+        const again = await readCreds();
+        if ("snapshot" in again) return false;
+        if (again.creds.accessToken === creds.accessToken) {
+          refreshError = "agy did not renew the token";
+          return false;
+        }
+        creds = again.creds;
+        return true;
+      };
+      const expired = () => creds.expiresAt !== null && creds.expiresAt <= ctx.now();
+      const signedOut = (reason: string) =>
+        errorSnapshot(
+          provider,
+          "unauthenticated",
+          `${reason}${refreshError ? ` and agy could not renew it (${refreshError})` : ""}. Run \`agy\` to sign in again, then refresh here.`,
+          LOGIN_CTA
+        );
+
+      if (expired() && (!(await renew()) || expired())) return signedOut("Antigravity token is expired");
+
+      let responses = await fetchQuota(ctx, creds);
+      if (responses[0]!.status === 401 && (await renew())) responses = await fetchQuota(ctx, creds);
+      return toSnapshot(provider, creds, responses, signedOut);
+    }
+  };
+  return provider;
+}
+
+function toSnapshot(
+  provider: UsageProvider,
+  creds: AntigravityCredentials,
+  [quota, summary, load]: JsonResponse[],
+  signedOut: (reason: string) => UsageSnapshot
+): UsageSnapshot {
+  if (!quota!.ok) {
+    if (quota!.status === 401) return signedOut("Antigravity rejected the token (HTTP 401)");
+    const message = asString(asRecord(asRecord(quota!.json)?.error)?.message);
+    return isAuthRejection(quota!.status)
+      ? errorSnapshot(provider, "error", `Antigravity denied access to the quota (HTTP ${quota!.status})${message ? `: ${message}` : "."}`)
+      : errorSnapshot(provider, "error", `Antigravity quota API returned HTTP ${quota!.status}.`);
+  }
+
+  const gemini = parseAntigravityModelQuota(quota!.json);
+  const windows = [...(gemini ? [gemini] : []), ...(summary!.ok ? parseAntigravityQuotaSummary(summary!.json) : [])];
+  return {
+    provider: provider.id,
+    label: provider.label,
+    status: "ok",
+    account: creds.email,
+    plan: load!.ok ? parseAntigravityPlan(load!.json) : null,
+    windows,
+    costUsd: null,
+    detail: windows.length === 0 ? "Connected, but no usage windows in the response." : null,
+    cta: null
+  };
+}
+
+export const antigravityProvider = createAntigravityProvider();

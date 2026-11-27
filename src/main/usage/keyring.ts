@@ -1,19 +1,18 @@
 // Read-only access to generic passwords in the OS keyring, through the system CLI tools
 // (no native module). Entries written by zalando/go-keyring use exactly these attributes.
-import { execFile } from "node:child_process";
+import { CommandNotFoundError, runCommand } from "./exec";
 
 const TIMEOUT_MS = 10_000;
 
-function run(cmd: string, args: string[]): Promise<{ code: number; stdout: string }> {
-  return new Promise((resolve, reject) => {
-    execFile(cmd, args, { timeout: TIMEOUT_MS, windowsHide: true }, (err, stdout) => {
-      if (!err) return resolve({ code: 0, stdout });
-      const code = (err as NodeJS.ErrnoException).code;
-      if (code === "ENOENT") return reject(new Error(`${cmd} not found; it is needed to read the system keyring.`));
-      if (typeof code === "number") return resolve({ code, stdout });
-      reject(err);
-    });
-  });
+async function run(cmd: string, args: string[]) {
+  try {
+    return await runCommand(cmd, args, TIMEOUT_MS);
+  } catch (err) {
+    if (err instanceof CommandNotFoundError) {
+      throw new Error(`${cmd} not found; it is needed to read the system keyring.`);
+    }
+    throw err;
+  }
 }
 
 /** Returns the secret, or null when there is no such entry. */
