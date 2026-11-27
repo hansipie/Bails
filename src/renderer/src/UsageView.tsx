@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import type { UsageCta, UsageReport, UsageSnapshot, UsageStatus, UsageWindow } from "../../shared/usage";
 import { formatResetCountdown, remainingTone } from "./format";
 import iconUrl from "./assets/icon.svg";
@@ -12,6 +12,34 @@ export function UsageView() {
   const [error, setError] = useState<string | null>(null);
   const [, setTick] = useState(0);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const hideProvider = useCallback(async (provider: string, hidden: boolean) => {
+    try {
+      setReport(await window.bails.usage.setHidden(provider, hidden));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
+  const mainRef = useRef<HTMLElement>(null);
+
+  // Keep the window height in sync with the content (cards, errors, hidden bar...).
+  // Measures the content element (not the window), so there is no resize feedback loop.
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    let last = 0;
+    const fit = () => {
+      const style = getComputedStyle(document.body);
+      const height = Math.ceil(el.getBoundingClientRect().height + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom));
+      if (height > 0 && height !== last) {
+        last = height;
+        window.bails.window.fitContent(height);
+      }
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const closeAbout = useCallback(() => setAboutOpen(false), []);
 
   const load = useCallback(async (force: boolean) => {
@@ -37,7 +65,7 @@ export function UsageView() {
   }, [load]);
 
   return (
-    <main className="usage">
+    <main className="usage" ref={mainRef}>
       <header className="usage-header">
         <div className="brand">
           <img className="brand-icon" src={iconUrl} alt="" />
@@ -57,7 +85,23 @@ export function UsageView() {
       </header>
       {aboutOpen ? <About onClose={closeAbout} /> : null}
       {error ? <p className="alert">{error}</p> : null}
-      {report?.providers.map((s) => <ProviderCard key={s.provider} snapshot={s} />)}
+      {report?.providers.map((s) => <ProviderCard key={s.provider} snapshot={s} onHide={() => void hideProvider(s.provider, true)} />)}
+      {report && report.hidden.length > 0 ? (
+        <div className="hidden-bar muted small">
+          <span>Hidden:</span>
+          {report.hidden.map((h) => (
+            <button
+              key={h.provider}
+              type="button"
+              className="btn small"
+              title={`Show ${h.label}`}
+              onClick={() => void hideProvider(h.provider, false)}
+            >
+              {h.label} · Show
+            </button>
+          ))}
+        </div>
+      ) : null}
       <footer className="footer">
         {report ? (
           <span className="muted small">Updated {new Date(report.fetchedAt).toLocaleTimeString()}</span>
@@ -69,7 +113,7 @@ export function UsageView() {
   );
 }
 
-function ProviderCard({ snapshot }: { snapshot: UsageSnapshot }) {
+function ProviderCard({ snapshot, onHide }: { snapshot: UsageSnapshot; onHide: () => void }) {
   const openHistory = () => void window.bails.usage.openHistory(snapshot.provider);
   const onCardClick = (e: MouseEvent<HTMLElement>) => {
     // Inner controls (copy, reveal email) keep their own behaviour; so does selecting text.
@@ -89,8 +133,8 @@ function ProviderCard({ snapshot }: { snapshot: UsageSnapshot }) {
         </div>
         <div className="card-side">
           <StatusDot status={snapshot.status} />
-          <button type="button" className="btn small" onClick={openHistory}>
-            History
+          <button type="button" className="btn small" onClick={onHide}>
+            Hide
           </button>
         </div>
       </div>

@@ -21,6 +21,8 @@ export interface ProviderContext {
   fetch: typeof fetch;
   env: NodeJS.ProcessEnv;
   homeDir: string;
+  /** Reads a generic password from the OS keyring; null when absent. Throws if the keyring is unusable. */
+  readKeyring(service: string, account: string): Promise<string | null>;
 }
 
 export class RateLimitError extends Error {
@@ -69,13 +71,32 @@ export interface JsonResponse {
 const REQUEST_TIMEOUT_MS = 15_000;
 
 /** GET a JSON endpoint; throws RateLimitError on 429. */
-export async function getJson(
+export function getJson(ctx: ProviderContext, url: string, headers: Record<string, string>): Promise<JsonResponse> {
+  return requestJson(ctx, url, { headers });
+}
+
+/** POST a JSON body to a JSON endpoint; throws RateLimitError on 429. */
+export function postJson(
   ctx: ProviderContext,
   url: string,
-  headers: Record<string, string>
+  headers: Record<string, string>,
+  body: unknown
+): Promise<JsonResponse> {
+  return requestJson(ctx, url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify(body)
+  });
+}
+
+async function requestJson(
+  ctx: ProviderContext,
+  url: string,
+  init: { method?: string; headers: Record<string, string>; body?: string }
 ): Promise<JsonResponse> {
   const res = await ctx.fetch(url, {
-    headers: { Accept: "application/json", ...headers },
+    ...init,
+    headers: { Accept: "application/json", ...init.headers },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
   });
   if (res.status === 429) {

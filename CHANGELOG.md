@@ -6,6 +6,24 @@ respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+
+- **Provider Antigravity** (Google, CLI `agy`) : quota des modèles Gemini (enregistré dans
+  l'historique comme session) et limites 5 h / hebdomadaires du groupe Claude/GPT, avec le plan
+  du compte. Le token est lu dans le trousseau système (Linux, macOS).
+- **Masquer une carte provider** : bouton `Hide` sur chaque carte, `Show` dans la barre « Hidden »
+  pour la ramener. Un provider masqué n'est plus interrogé ; le choix est mémorisé dans
+  `settings.json` (userData).
+
+### Changé
+
+- **Fenêtre principale ajustée au contenu** : la hauteur suit les cartes affichées (1 à 3
+  providers, carte masquée, bloc de connexion, chargement), dans la limite de l'écran.
+
+### Supprimé
+
+- **Bouton `History`** des cartes provider : l'historique s'ouvre toujours d'un clic sur la carte.
+
 ## [0.2.1] - 2026-11-20
 
 ### Changé

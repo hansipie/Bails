@@ -85,6 +85,8 @@ En local, `npm run dist` construit les installeurs de l'OS courant dans `dist/`
 ## 🕹️ FEATURES
 
 - **Claude Code** et **Codex** : session 5 h, quota hebdomadaire, dépense on-demand.
+- **Antigravity** (Google, CLI `agy`) : quota partagé des modèles Gemini, plus les limites 5 h et
+  hebdomadaire du groupe Claude/GPT quand l'API les renvoie.
 - **Jauges pixel** façon barre d'énergie : orange → jaune sous 20 % → rouge clignotant à sec.
 - **Compte à rebours** avant chaque reset, rafraîchi toutes les 30 s.
 - **Auto-refresh** toutes les 5 min, bouton `REFRESH ◀` pour forcer.
@@ -92,6 +94,9 @@ En local, `npm run dist` construit les installeurs de l'OS courant dans `dist/`
 - **Commande de connexion à copier** quand un provider n'est pas connecté.
 - **Historique** : un clic sur une carte ouvre une fenêtre avec les courbes du quota session et
   hebdomadaire (24 h / 3 j / 7 j), enregistrées localement dans `usage-history.json` (30 jours max).
+- **Cartes masquables** : bouton `HIDE` sur chaque carte (le provider n'est alors plus interrogé),
+  `Show` dans la barre « Hidden » pour la ramener ; mémorisé dans `settings.json`.
+- **Fenêtre ajustée au contenu** : la hauteur suit les cartes affichées (limitée à l'écran).
 - **100 % local** : polices embarquées, aucune télémétrie, credentials en lecture seule.
 
 <div align="center">
@@ -109,9 +114,13 @@ En local, `npm run dist` construit les installeurs de l'OS courant dans `dist/`
 |---|---|---|
 | Claude Code | `$CLAUDE_CONFIG_DIR/.credentials.json` (défaut `~/.claude`) | `GET https://api.anthropic.com/api/oauth/usage` (`anthropic-beta: oauth-2025-04-20`) |
 | Codex | `$CODEX_HOME/auth.json` (défaut `~/.codex`) | `GET https://chatgpt.com/backend-api/wham/usage` (`chatgpt-account-id`) |
+| Antigravity | trousseau système, service `gemini` / compte `antigravity` (via `secret-tool` sous Linux, `security` sous macOS) | `POST https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota`, `:retrieveUserQuotaSummary`, `:loadCodeAssist` (`User-Agent: antigravity/…`) |
 
 Les fichiers de credentials ne sont **jamais réécrits** et les tokens ne sont jamais rafraîchis :
-si un token est expiré ou rejeté, la carte invite à relancer `claude` / `codex login`.
+si un token est expiré ou rejeté, la carte invite à relancer `claude` / `codex login` / `agy`.
+Le token Antigravity expire au bout d'une heure : `agy` le renouvelle quand il tourne.
+Antigravity n'est pas encore pris en charge sous Windows. Gemini CLI n'est pas utilisé :
+Google n'y accepte plus les comptes individuels et renvoie vers Antigravity.
 Ces endpoints ne sont pas documentés publiquement et peuvent changer : les parsers sont
 volontairement tolérants (plusieurs noms de champs acceptés).
 
@@ -124,7 +133,8 @@ src/
 ├── main/            process Electron : fenêtres, IPC, UsageService
 │   └── usage/
 │       ├── history.ts   historique des quotas (usage-history.json)
-│       └── providers/   claude.ts, codex.ts
+│       ├── keyring.ts   lecture du trousseau système (secret-tool / security)
+│       └── providers/   claude.ts, codex.ts, antigravity.ts
 ├── preload/         expose window.bails.usage au renderer (rapport + historique)
 ├── renderer/        UI React (thème arcade : styles.css, UsageView.tsx, HistoryView.tsx)
 └── shared/          types partagés (UsageReport, UsageSnapshot…)

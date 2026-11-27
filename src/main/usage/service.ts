@@ -25,6 +25,8 @@ const defaultFormatClock = (ms: number) =>
 export class UsageService {
   private cached: UsageReport | null = null;
   private inFlight: Promise<UsageReport> | null = null;
+  private hidden = new Set<ProviderId>();
+  private generation = 0;
   private readonly resilience = new Map<ProviderId, Resilience>();
   private readonly cacheTtlMs: number;
   private readonly minBackoffMs: number;
@@ -44,15 +46,32 @@ export class UsageService {
     this.onFreshSnapshots = options.onFreshSnapshots;
   }
 
+  getHidden(): ProviderId[] {
+    return [...this.hidden];
+  }
+
+  /** Hidden providers are not fetched at all and are listed in `report.hidden` instead. */
+  setHidden(ids: ProviderId[]): void {
+    this.hidden = new Set(ids);
+    this.generation++;
+    this.cached = null;
+    this.inFlight = null;
+  }
+
   async getReport(force = false): Promise<UsageReport> {
     if (this.inFlight) return this.inFlight;
     if (!force && this.cached && this.ctx.now() - this.cached.fetchedAt < this.cacheTtlMs) {
       return this.cached;
     }
+    const generation = this.generation;
     const promise = (async () => {
-      const results = await Promise.all(this.providers.map((p) => this.fetchOne(p)));
-      const report: UsageReport = { providers: results.map((r) => r.snapshot), fetchedAt: this.ctx.now() };
-      this.cached = report;
+      const results = await Promise.all(this.providers.filter((p) => !this.hidden.has(p.id)).map((p) => this.fetchOne(p)));
+      const report: UsageReport = {
+        providers: results.map((r) => r.snapshot),
+        hidden: this.providers.filter((p) => this.hidden.has(p.id)).map((p) => ({ provider: p.id, label: p.label })),
+        fetchedAt: this.ctx.now()
+      };
+      if (generation === this.generation) this.cached = report;
       const fresh = results.filter((r) => r.fresh).map((r) => r.snapshot);
       if (fresh.length > 0) this.onFreshSnapshots?.(fresh, report.fetchedAt);
       return report;
@@ -61,7 +80,7 @@ export class UsageService {
     try {
       return await promise;
     } finally {
-      this.inFlight = null;
+      if (this.inFlight === promise) this.inFlight = null;
     }
   }
 

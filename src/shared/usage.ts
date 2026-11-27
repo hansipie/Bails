@@ -31,8 +31,15 @@ export interface UsageSnapshot {
   cta: UsageCta;
 }
 
+export interface HiddenProvider {
+  provider: ProviderId;
+  label: string;
+}
+
 export interface UsageReport {
   providers: UsageSnapshot[];
+  /** Providers the user hid: not fetched, listed so they can be shown again. */
+  hidden: HiddenProvider[];
   fetchedAt: number;
 }
 
@@ -50,10 +57,17 @@ export interface UsageHistory {
   samples: UsageSample[];
 }
 
+export interface WindowApi {
+  /** Asks the main process to resize the window so its content height fits (px). */
+  fitContent(height: number): void;
+}
+
 export interface UsageApi {
   get(force?: boolean): Promise<UsageReport>;
   /** Recorded samples for one provider (oldest first). */
   history(provider: ProviderId): Promise<UsageHistory>;
+  /** Hides or shows a provider card (persisted); resolves with the updated report. */
+  setHidden(provider: ProviderId, hidden: boolean): Promise<UsageReport>;
   /** Opens (or focuses) the history window for one provider. */
   openHistory(provider: ProviderId): Promise<void>;
 }
