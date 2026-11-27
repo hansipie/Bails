@@ -15,7 +15,7 @@ fenêtres de rate-limit, % restant et compte à rebours avant reset.
 ![Vitest](https://img.shields.io/badge/tests-vitest-2b1f3d?style=for-the-badge&logo=vitest&logoColor=ffc24a)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2b1f3d?style=for-the-badge&logoColor=ffc24a)](LICENSE)
 
-<img src="docs/screenshot.png" alt="Capture d'écran de Bails : cartes Claude Code et Codex avec jauges de quota pixelisées" width="420" />
+<img src="docs/screenshot.png" alt="Capture d'écran de Bails : cartes Claude Code, Codex et Antigravity avec jauges de quota pixelisées" width="420" />
 
 </div>
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { join } from "node:path";
 import { CommandNotFoundError } from "./exec";
 import {
   AGY_RETRY_MS,
@@ -186,7 +187,7 @@ describe("antigravity", () => {
     const snap = await createAntigravityProvider().fetchSnapshot(ctx);
     expect(snap.status).toBe("ok");
     // ~/.local/bin/agy is missing in this test, so it falls back to agy on the PATH.
-    expect(commands).toEqual(["/home/x/.local/bin/agy models", "agy models"]);
+    expect(commands).toEqual([`${join("/home/x", ".local", "bin", "agy")} models`, "agy models"]);
     expect(new Set(tokens)).toEqual(new Set(["Bearer new"]));
   });
 

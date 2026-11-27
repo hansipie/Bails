@@ -228,7 +228,8 @@ body {
 .card-side .btn.small { padding: 0; }
 
 /* History window */
-.history { gap: 12px; }
+/* The history window fills its window (the main window instead fits its content). */
+.history { gap: 12px; min-height: 100%; }
 .history-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .history-title h1 { font-size: 14px; }
 .range { display: flex; gap: 2px; }
