@@ -1,5 +1,6 @@
 # Builds Bails installers for macOS, Linux and Windows.
-# - Push a tag "vX.Y.Z" (matching package.json "version") -> builds all 3 OS and publishes a GitHub release.
+# - Push a tag "vX.Y.Z" (matching package.json "version") -> builds all 3 OS and publishes a GitHub release,
+#   whose description is the "## [X.Y.Z]" section of CHANGELOG.md (scripts/release-notes.mjs).
 # - Run manually (Actions tab > Release > Run workflow) -> builds only, installers downloadable as artifacts.
 name: Release
 
@@ -46,6 +47,11 @@ jobs:
             echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $pkg"
             exit 1
           fi
+
+      # Fail early (before the long builds) if the release would have no description.
+      - name: Check CHANGELOG has a section for this version
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.target == 'linux'
+        run: node scripts/release-notes.mjs CHANGELOG.md "$GITHUB_REF_NAME" > /dev/null
 
       - name: Install rpm tooling
         if: matrix.target == 'linux'
@@ -117,6 +123,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Release notes from CHANGELOG.md
+        run: node scripts/release-notes.mjs CHANGELOG.md "$GITHUB_REF_NAME" > "$RUNNER_TEMP/release-notes.md" && cat "$RUNNER_TEMP/release-notes.md"
+
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: dist
@@ -129,5 +140,5 @@ jobs:
       - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           name: Bails ${{ github.ref_name }}
-          generate_release_notes: true
+          body_path: ${{ runner.temp }}/release-notes.md
           files: dist/*

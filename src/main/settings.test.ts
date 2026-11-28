@@ -19,18 +19,32 @@ const tmp = () => {
 
 describe("settings", () => {
   it("sanitizes garbage input", () => {
-    expect(sanitizeSettings(null)).toEqual({ hiddenProviders: [] });
-    expect(sanitizeSettings({ hiddenProviders: ["a", 3, "", "a", "b"] })).toEqual({ hiddenProviders: ["a", "b"] });
+    expect(sanitizeSettings(null)).toEqual({ hiddenProviders: [], launchAtLogin: true });
+    expect(sanitizeSettings({ hiddenProviders: ["a", 3, "", "a", "b"], launchAtLogin: "no" })).toEqual({
+      hiddenProviders: ["a", "b"],
+      launchAtLogin: true
+    });
   });
 
   it("persists hidden providers across instances and tolerates a corrupt file", async () => {
     const file = tmp();
     expect(await new SettingsStore(file).getHidden()).toEqual([]);
     await new SettingsStore(file).setHidden(["codex"]);
-    expect(JSON.parse(readFileSync(file, "utf8"))).toEqual({ hiddenProviders: ["codex"] });
+    expect(JSON.parse(readFileSync(file, "utf8"))).toEqual({ hiddenProviders: ["codex"], launchAtLogin: true });
     expect(await new SettingsStore(file).getHidden()).toEqual(["codex"]);
     writeFileSync(file, "{nope");
     expect(await new SettingsStore(file).getHidden()).toEqual([]);
+  });
+
+  it("keeps launch-at-login and hidden providers independent", async () => {
+    const file = tmp();
+    const store = new SettingsStore(file);
+    expect(await store.getLaunchAtLogin()).toBe(true);
+    await store.setHidden(["codex"]);
+    await store.setLaunchAtLogin(false);
+    const reloaded = new SettingsStore(file);
+    expect(await reloaded.getLaunchAtLogin()).toBe(false);
+    expect(await reloaded.getHidden()).toEqual(["codex"]);
   });
 });
 

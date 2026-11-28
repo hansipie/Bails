@@ -64,6 +64,9 @@ git push --follow-tags     # le workflow GitHub construit macOS, Windows, Linux 
 Le workflow [`.github/workflows/release.yml`](.github/workflows/release.yml) vérifie que le tag
 correspond à la version de `package.json`, lance typecheck + tests, package les 3 OS puis publie
 la release avec les installeurs et un fichier `SHA256SUMS.txt`.
+La description de la release est la section `## [X.Y.Z]` de [`CHANGELOG.md`](CHANGELOG.md),
+extraite par `scripts/release-notes.mjs` : remplis-la **avant** de créer le tag, sinon le workflow
+s'arrête dès le début. Pour vérifier le rendu : `node scripts/release-notes.mjs CHANGELOG.md X.Y.Z`.
 Il peut aussi être lancé à la main (onglet *Actions*) pour un build sans release.
 
 ### Signature macOS
@@ -96,6 +99,12 @@ En local, `npm run dist` construit les installeurs de l'OS courant dans `dist/`
   hebdomadaire (24 h / 3 j / 7 j), enregistrées localement dans `usage-history.json` (30 jours max).
 - **Cartes masquables** : bouton `HIDE` sur chaque carte (le provider n'est alors plus interrogé),
   `Show` dans la barre « Hidden » pour la ramener ; mémorisé dans `settings.json`.
+- **Icône dans la barre de notification** : fermer la fenêtre la range dans le tray (clic sur
+  l'icône pour la rouvrir, menu pour rafraîchir ou quitter). Sous GNOME, il faut l'extension
+  [AppIndicator](https://extensions.gnome.org/extension/615/appindicator-support/).
+- **Lancement à l'ouverture de session** (activé par défaut, case « Launch at login » du menu du
+  tray) : Bails démarre directement dans le tray. Sous Linux, entrée XDG
+  `~/.config/autostart/bails.desktop` ; macOS/Windows : éléments de connexion du système.
 - **Fenêtre ajustée au contenu** : la hauteur suit les cartes affichées (limitée à l'écran).
 - **100 % local** : polices embarquées, aucune télémétrie, credentials en lecture seule.
 
