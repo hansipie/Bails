@@ -1,6 +1,6 @@
 {
   "name": "bails",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Desktop usage meter for AI coding CLIs (Claude Code, Codex, ...)",
   "author": {

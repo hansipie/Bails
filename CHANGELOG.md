@@ -6,6 +6,21 @@ respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-28
+
+### Ajouté
+
+- **Icône dans la barre de notification** (tray) : fermer la fenêtre la masque au lieu de quitter ;
+  clic sur l'icône pour l'afficher, menu « Show/Hide », « Refresh now », « Quit Bails ».
+- **Lancement à l'ouverture de session**, activé par défaut et désactivable depuis le menu du tray
+  (« Launch at login », mémorisé dans `settings.json`) : Bails démarre masqué dans le tray.
+- Une seule instance : relancer Bails ré-affiche la fenêtre existante.
+
+### Changé
+
+- CI : la description de chaque release GitHub reprend la section de la version dans
+  `CHANGELOG.md`, au lieu des notes générées automatiquement.
+
 ## [0.3.0] - 2026-11-27
 
 ### Ajouté
@@ -66,7 +81,8 @@ respecte le [versionnage sémantique](https://semver.org/lang/fr/).
 - Packaging electron-builder (macOS signé et notarisé, Windows, Linux) et workflow de release GitHub.
 - Licence MIT.
 
-[Unreleased]: https://github.com/hansipie/Bails/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/hansipie/Bails/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/hansipie/Bails/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/hansipie/Bails/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/hansipie/Bails/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/hansipie/Bails/compare/v0.1.0...v0.2.0
