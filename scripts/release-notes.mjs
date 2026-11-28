@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Prints the GitHub release description of one version, taken from CHANGELOG.md
 // (Keep a Changelog format). Used by .github/workflows/release.yml.
 //
